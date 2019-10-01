@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gitea.fullname" . }}
+  labels:
+{{ include "gitea.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "gitea.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "gitea.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+    {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["sh", "-c", "mkdir -p /data/gitea/conf/ && cp /config/app.ini /data/gitea/conf/app.ini && /usr/bin/entrypoint"]
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+             - name: USER_UID
+               value: "1000"
+             - name: USER_GID
+               value: "1000"
+             ## DB configuration
+             ##
+             - name: DB_TYPE
+               value: postgres
+             - name: DB_HOST
+               value: {{ template "gitea.postgresql.fullname" . }}:5432
+             - name: DB_USER
+               value: {{ default "postgres" .Values.postgresql.postgresqlUsername | quote }}
+             - name: DB_PASSWD
+               valueFrom:
+                secretKeyRef:
+                  name: {{ template "gitea.fullname" . }}-postgresql
+                  key: postgresql-password
+             - name: DB_DATABASE
+               value: {{ default "gitea" .Values.postgresql.postgresDatabase | quote }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+            - name: ssh
+              containerPort: 22
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          volumeMounts:
+           #- name: gitea-data
+           #   mountPath: /data
+            - name: gitea-config
+              mountPath: /config 
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: gitea-config
+          configMap:
+            name: {{ template "gitea.fullname" . }} 
+       #- name: gitea-data
+       #   {{- if .Values.persistence.giteaData.enabled }}
+       #   persistentVolumeClaim:
+       #     claimName: {{ template "gitea.fullname" . }}-data
+       #   {{- else }}
+       #   emptyDir: {}
+       #   {{- end }}

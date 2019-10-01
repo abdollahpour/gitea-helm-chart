@@ -1,0 +1,18 @@
+{{- if .Values.persistence.giteaData.enabled }}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ template "gitea.fullname" . }}-data
+  annotations:
+  {{- if .Values.persistence.giteaData.storageClass }}
+    volume.beta.kubernetes.io/storage-class: {{ .Values.persistence.giteaData.storageClass | quote }}
+  {{- else }}
+    volume.alpha.kubernetes.io/storage-class: default
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.giteaData.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.giteaData.size | quote }}
+{{- end }}
