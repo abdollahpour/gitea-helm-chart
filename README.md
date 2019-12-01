@@ -2,12 +2,27 @@
 
 [Gitea](https://gitea.io) is a community managed lightweight code hosting solution written in Go. It is published under the MIT license.
 
-## TL;DR;
+clone the repo then create you own configuration file. For example (char-value.yaml):
 
-clone the repo then:
+```
+ingress:
+  tls:
+    - hosts:
+      - your-domain.com
+      secretName: gitea-tls
 
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    # SSL Will not work if you don't have cer-manager & letsencrypt-prod cluster-issuer installed
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # If you don't have SSL config, disable this line
+    ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: your-domain.com
+```
+Then run:
 ```console
-$ helm install .
+$ helm install --name gitea --namespace gitea .
 ```
 
 ## Introduction
